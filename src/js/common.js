@@ -1217,13 +1217,15 @@ let timeLifeHour = -1
   const loads = ['initCarousel', 'sparkInput', 'websiteTime', 'initEffects', 'iniTaskItemDisabled', 'initPhotosGallery']
   const omits = ['showThemeVersion', 'initMermaid']
 
+  $('html').addClass('loaded')
+
   Object.keys(commonContext).forEach(
     (c) => !loads.includes(c) && !omits.includes(c) && commonContext[c]()
   )
 
   // 当前html加载完执行
   document.addEventListener('DOMContentLoaded', function () {
-    $('html').addClass('loaded')
+    // $('html').addClass('loaded')
     loads.forEach((c) => commonContext[c] && commonContext[c]())
   })
 

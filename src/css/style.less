@@ -133,6 +133,22 @@ html {
     }
   }
 
+  /* 兜底：JS 未能及时添加 .loaded（弱网、脚本报错或被拦截）时，1s 后强制显示，避免长时间白屏 */
+  &:not(.loaded) {
+
+    .navbar-above {
+      z-index: 100;
+
+      &.animation {
+        animation: navbar-force-show 0.3s 1s forwards;
+      }
+    }
+
+    .column-main, .load-block, .column-side {
+      animation: force-show 0.3s 1s forwards;
+    }
+  }
+
   &.pjax-loading .column-main,
   &.pjax-loading .load-block {
     opacity: 0;
@@ -188,6 +204,27 @@ html {
   .body-no-scroll {
     overflow: hidden;
     position: relative;
+  }
+}
+
+/* .loaded 兜底动画，保证 JS 失效时内容与导航栏最终可见 */
+@keyframes force-show {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes navbar-force-show {
+  0% {
+    transform: translateY(-100%);
+  }
+
+  100% {
+    transform: translateY(0);
   }
 }
 
