@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<!--
+  游戏记录页面模版 —— Dream2.0 Plus 主题自定义页模板
+
+  位置
+      templates/game.html               本文件
+      templates/assets/game/game.js     页面脚本
+      theme.yaml 的 spec.customTemplates.page 里已登记本模版
+
+  数据来源
+      /themes/<主题>/assets/game/site.json
+          由 sync_extra.py 生成后部署进主题，**不进仓库**
+          （含 SteamID 与全部评测正文，推公开仓库会泄露）
+      封面图
+          存在 Halo 附件里，site.json 中记的是 /upload/... 绝对路径，
+          因此主题怎么重装都不会丢。上传脚本见 upload_covers.py。
+
+  设计语言
+      全部使用主题已有的 CSS 变量（--theme / --light-a / --light-b / --dark-c /
+      --radius-wrap / --box-shadow 等），因此亮暗模式、主题色改动都会自动跟随。
+-->
+<th:block
+        th:insert="~{common/layout :: layout (showTitle = ${singlePage.spec.title}, canonical = ${singlePage.status.permalink}, content = ~{::content}, isPost = false, hideSidebar = false)}"
+        th:with="baseEnableComment = false"
+        xmlns:th="https://www.thymeleaf.org">
+
+  <th:block th:fragment="content">
+
+    <!--
+      class="main-content" 是给主题的「目录」侧边栏用的，不是为了排版。
+
+      主题的 TOC 是前端生成的（btoc.min.js），它只扫 .main-content:not(.not-toc)
+      里的 h1~h6，扫不到就给 .widget.toc 加 is-hidden-all 藏起来。本页的标题
+      由 game.js 渲染，所以必须手动触发 window.tocPjax() 重新扫描 —— 见 game.js。
+
+      hideSidebar 必须为 false：为 true 时主题会加 .hide-sidebar，
+      它带 width:100vw 会让整页撑到视口宽，并把侧边栏 display:none 掉。
+    -->
+    <div id="game-tracker" class="main-content"
+         th:attr="data-json=${#theme.assets('/game/site.json')}">
+      <div class="gt-state">
+        <i class="ri-loader-4-line gt-spin"></i>
+        <span>正在读取游戏数据…</span>
+      </div>
+    </div>
+
+    <style>
+      /* ============ 游戏记录页 ============ */
+      #game-tracker {
+        color: var(--main);
+        font-size: 14px;
+        line-height: 1.65;
+      }
+      #game-tracker * { box-sizing: border-box; }
+
+      /* ---------- 抵消 .main-content 带进来的「文章正文」样式 ----------
+         上面为了 TOC 给 #game-tracker 加了 .main-content，但主题对这个类
+         配了一整套正文排版（正文最小字号、标题伪元素、图片悬浮放大）。
+         用 ID 选择器提权盖掉，只保留「能被 TOC 扫到」这一个作用。
+         其余像 .main-content > * { margin-bottom:14px } 不用管：
+         相邻外边距会合并，且我的规则在主题样式表之后，实际不生效。 */
+      #game-tracker { font-weight: 400; word-break: normal; }
+      /* scroll-margin-top 是给收起后的定位用的：主题导航栏是固定的，
+         不留出这段距离标题会被压在导航栏底下 */
+      #game-tracker .gt-h2 {
+        font-size: 17px; font-weight: 700; margin: 26px 0 12px;
+        scroll-margin-top: 90px;
+      }
+      /* 主题的 .main-content h2::before/::after 是撑间距用的块级伪元素，要干掉。
+         但 ::after 我们留着显示计数 —— 顺带把它覆盖成正文小字。 */
+      #game-tracker .gt-h2::before { content: none; display: none; margin: 0; }
+      #game-tracker .gt-h2::after {
+        content: attr(data-count);
+        display: inline; margin: 0;
+        font-size: 12px; font-weight: 400; color: var(--dark-a);
+        white-space: nowrap;
+      }
+      #game-tracker a:not([class]) { background-image: none; }
+      #game-tracker a { color: inherit; text-decoration: none; }
+      #game-tracker img { display: block; max-width: 100%; }
+
+      .gt-state {
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        padding: 60px 20px;
+        color: var(--dark-a);
+        background: var(--light-a);
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-wrap);
+      }
+      .gt-state.is-error { color: #ff5656; flex-direction: column; text-align: center; }
+      .gt-spin { animation: gt-rotate 1s linear infinite; font-size: 18px; }
+      @keyframes gt-rotate { to { transform: rotate(360deg); } }
+
+      /* ---------- 顶部大框 ---------- */
+      .gt-hero {
+        display: flex; flex-wrap: wrap; gap: 20px;
+        align-items: center; justify-content: space-between;
+        padding: 26px 26px;
+        margin-bottom: 16px;
+        background: radial-gradient(rgba(120,144,180,.14) 1.2px, transparent 1.8px), var(--bg-a);
+        background-size: 18px 18px, 100% 100%;
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-wrap);
+        box-shadow: 0 4px 20px rgba(0,0,0,.05);
+      }
+      .gt-hero-label {
+        font-size: 13px; letter-spacing: 2px;
+        color: var(--dark-a); margin-bottom: 2px;
+      }
+      .gt-hero-hours {
+        display: flex; align-items: baseline; gap: 6px;
+        font-size: 46px; font-weight: 700; line-height: 1.05;
+        color: var(--theme); letter-spacing: -1px;
+        font-variant-numeric: tabular-nums;
+      }
+      .gt-hero-hours em { font-size: 16px; font-style: normal; font-weight: 500; color: var(--dark-a); }
+      .gt-hero-sub {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+        margin-top: 10px; font-size: 13px; color: var(--dark-a);
+      }
+      .gt-hero-sub b { color: var(--dark-c); font-weight: 600; }
+      .gt-sep { color: var(--light-d); }
+
+      .gt-hero-user {
+        display: flex; align-items: center; gap: 12px;
+        padding: 10px 16px;
+        background: var(--bg-d);
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-wrap);
+      }
+      .gt-hero-user img {
+        width: 46px; height: 46px; border-radius: 50%;
+        border: 2px solid var(--theme);
+      }
+      .gt-hero-user .gt-uname { font-size: 15px; font-weight: 600; color: var(--dark-c); }
+      .gt-hero-user .gt-utime { font-size: 12px; color: var(--dark-a); }
+
+      /* ---------- 统计条 ---------- */
+      .gt-stats {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px; margin-bottom: 16px;
+      }
+      .gt-stat {
+        padding: 14px 16px;
+        background: var(--light-a);
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-wrap);
+        box-shadow: var(--box-shadow);
+      }
+      .gt-stat-k { font-size: 12px; color: var(--dark-a); display: flex; align-items: center; gap: 5px; }
+      .gt-stat-v {
+        font-size: 24px; font-weight: 700; color: var(--dark-c);
+        font-variant-numeric: tabular-nums; line-height: 1.3;
+      }
+      .gt-stat-v small { font-size: 12px; font-weight: 500; color: var(--dark-a); margin-left: 3px; }
+      .gt-stat i { color: var(--theme); }
+
+      /* ---------- 标题 ---------- */
+      .gt-h2 {
+        display: flex; align-items: center; gap: 8px;
+        margin: 26px 0 12px;
+        font-size: 17px; font-weight: 700; color: var(--dark-c);
+      }
+      .gt-h2 i { color: var(--theme); }
+      /* 计数（「242 款」这类）由 data-count 经伪元素渲染，见下方抵消段。
+         不能直接写进标题文字里 —— 主题的目录侧边栏用 textContent 取标题，
+         会把计数一起带进目录，变成「游戏库24 / 242 款」这种条目。 */
+
+      /* ---------- 成就进度 ---------- */
+      .gt-ach-card {
+        padding: 18px 20px;
+        background: var(--light-a);
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-wrap);
+        box-shadow: var(--box-shadow);
+      }
+      .gt-ach-top {
+        display: flex; flex-wrap: wrap; align-items: baseline;
+        justify-content: space-between; gap: 8px; margin-bottom: 10px;
+      }
+      .gt-ach-num {
+        font-size: 26px; font-weight: 700; color: var(--theme);
+        font-variant-numeric: tabular-nums;
+      }
+      .gt-ach-num span { font-size: 14px; color: var(--dark-a); font-weight: 400; }
+      .gt-meter {
+        height: 8px; border-radius: 99px;
+        background: var(--light-b); overflow: hidden;
+      }
+      .gt-meter > i {
+        display: block; height: 100%; border-radius: 99px;
+        background: linear-gradient(90deg, var(--theme), var(--bg-i));
+        transition: width .8s ease;
+      }
+      .gt-ach-foot {
+        display: flex; flex-wrap: wrap; gap: 14px;
+        margin-top: 10px; font-size: 12px; color: var(--dark-a);
+      }
+
+      /* ---------- 最近在玩 ---------- */
+      .gt-recent { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+      .gt-recent-item {
+        flex: 0 0 190px;
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-wrap);
+        overflow: hidden;
+        background: var(--light-a);
+      }
+      .gt-recent-item img { width: 100%; aspect-ratio: 460 / 215; object-fit: cover; }
+      .gt-recent-meta { padding: 8px 10px; }
+      .gt-recent-name {
+        font-size: 13px; color: var(--dark-c); font-weight: 600;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .gt-recent-time { font-size: 12px; color: var(--theme); font-weight: 600; }
+
+      /* ---------- 工具栏 ---------- */
+      .gt-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+      .gt-tabs {
+        display: inline-flex; gap: 2px; padding: 3px;
+        background: var(--bg-c);
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-inner);
+      }
+      .gt-tab {
+        padding: 5px 13px; font-size: 13px; cursor: pointer;
+        border: none; background: transparent; color: var(--dark-a);
+        border-radius: var(--radius-inner);
+        transition: all .2s;
+      }
+      .gt-tab:hover { color: var(--theme); }
+      .gt-tab.is-active { background: var(--theme); color: #fff; }
+      .gt-search {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 12px;
+        background: var(--light-a);
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-inner);
+      }
+      .gt-search i { color: var(--dark-a); }
+      .gt-search input {
+        border: none; outline: none; background: transparent;
+        color: var(--dark-c); font-size: 13px; width: 130px;
+        font-family: inherit;
+      }
+      .gt-search input::placeholder { color: var(--dark-a); }
+
+      /* ---------- 游戏墙 ---------- */
+      .gt-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+        gap: 14px;
+      }
+      .gt-card {
+        position: relative;
+        background: var(--light-a);
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-wrap);
+        overflow: hidden;
+        box-shadow: var(--box-shadow);
+        transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+      }
+      .gt-card:hover {
+        transform: translateY(-3px);
+        border-color: var(--theme);
+        box-shadow: 0 6px 22px rgba(0,0,0,.12);
+      }
+      .gt-cover { position: relative; display: block; background: var(--bg-c); }
+      .gt-cover img {
+        width: 100%; aspect-ratio: 460 / 215; object-fit: cover;
+        transition: transform .35s ease;
+      }
+      .gt-card:hover .gt-cover img { transform: scale(1.05); }
+      .gt-hours {
+        position: absolute; right: 6px; bottom: 6px;
+        padding: 2px 7px; font-size: 11px; font-weight: 600;
+        color: #fff; background: rgba(0,0,0,.62);
+        border-radius: var(--radius-inner);
+        backdrop-filter: blur(2px);
+        font-variant-numeric: tabular-nums;
+      }
+      .gt-meta { padding: 8px 10px 10px; }
+      .gt-name {
+        font-size: 13px; font-weight: 600; color: var(--dark-c);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .gt-sub {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 6px; margin-top: 3px; font-size: 11px; color: var(--dark-a);
+      }
+      .gt-mini {
+        flex: 0 0 auto; display: flex; align-items: center; gap: 4px;
+      }
+      .gt-mini .gt-mini-bar {
+        width: 40px; height: 4px; border-radius: 99px;
+        background: var(--light-b); overflow: hidden;
+      }
+      .gt-mini .gt-mini-bar > i { display: block; height: 100%; background: var(--theme); }
+      .gt-card.is-unplayed .gt-cover img { opacity: .45; filter: grayscale(.7); }
+      .gt-card.is-unplayed .gt-hours { background: rgba(0,0,0,.45); }
+      .gt-card.is-hidden { display: none; }
+      .gt-ach-done { color: var(--theme); }
+
+      /* ---------- 折叠 / 展开 ---------- */
+      .gt-expand-wrap {
+        display: flex; justify-content: center;
+        margin-top: 16px;
+      }
+      .gt-expand {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 22px; font-size: 13px; font-family: inherit;
+        color: var(--dark-c); cursor: pointer;
+        background: var(--light-a);
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-inner);
+        transition: all .2s ease;
+      }
+      .gt-expand:hover {
+        color: var(--theme);
+        border-color: var(--theme);
+        box-shadow: var(--box-shadow);
+      }
+      .gt-expand i { font-size: 15px; }
+
+      /* ---------- 评测 ---------- */
+      .gt-reviews { display: grid; gap: 12px; }
+      .gt-review {
+        padding: 16px 18px;
+        background: var(--light-a);
+        border: 1px solid var(--light-b);
+        border-radius: var(--radius-wrap);
+        box-shadow: var(--box-shadow);
+      }
+      .gt-review-head { display: flex; align-items: center; gap: 12px; }
+      .gt-review-head img {
+        width: 92px; aspect-ratio: 460 / 215; object-fit: cover;
+        border-radius: var(--radius-img); flex: 0 0 auto;
+      }
+      .gt-review-title { min-width: 0; flex: 1; }
+      .gt-review-name {
+        font-size: 14px; font-weight: 600; color: var(--dark-c);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .gt-review-name:hover { color: var(--theme); }
+      .gt-review-meta {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+        margin-top: 4px; font-size: 12px; color: var(--dark-a);
+      }
+      .gt-vote {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 1px 8px; border-radius: var(--radius-inner);
+        font-size: 12px; font-weight: 600;
+      }
+      .gt-vote.up { color: #1a9f60; background: rgba(26,159,96,.12); }
+      .gt-vote.down { color: #e05252; background: rgba(224,82,82,.12); }
+      .gt-review-text {
+        margin-top: 10px; padding-top: 10px;
+        border-top: 1px dashed var(--light-b);
+        font-size: 13px; color: var(--main); white-space: pre-wrap;
+        display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4;
+        overflow: hidden;
+      }
+      .gt-review-text.is-open { -webkit-line-clamp: unset; display: block; }
+      .gt-more {
+        margin-top: 8px; font-size: 12px; color: var(--theme);
+        background: none; border: none; cursor: pointer; padding: 0;
+        font-family: inherit;
+      }
+      .gt-more:hover { text-decoration: underline; }
+
+      .gt-empty {
+        padding: 40px 20px; text-align: center;
+        color: var(--dark-a);
+        background: var(--light-a);
+        border: 1px dashed var(--light-b);
+        border-radius: var(--radius-wrap);
+      }
+
+      @media screen and (max-width: 768px) {
+        .gt-hero { padding: 20px 18px; }
+        .gt-hero-hours { font-size: 36px; }
+        .gt-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+        .gt-name { font-size: 12px; }
+        .gt-review-head img { width: 68px; }
+        .gt-search input { width: 90px; }
+      }
+    </style>
+
+    <script th:src="${#theme.assets('/game/game.js')}" data-pjax></script>
+
+  </th:block>
+</th:block>

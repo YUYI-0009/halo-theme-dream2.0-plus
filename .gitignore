@@ -6,3 +6,9 @@ package-lock.json
 templates/assets/js/dshare.min.js.LICENSE.txt
 /templates/assets/js/
 /templates/assets/css/
+
+# 游戏记录页的数据与封面：由脚本生成并部署，不进仓库
+#   site.json  含 SteamID 与全部评测正文，推公开仓库会泄露
+#   封面图     存在 Halo 附件里，见 upload_covers.py
+/templates/assets/game/site.json
+/templates/assets/game/covers/

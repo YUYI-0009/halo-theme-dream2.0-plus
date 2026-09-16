@@ -29,6 +29,10 @@ spec:
         description: 留言板页面，展示 halo 评论数据。
         screenshot:
         file: message_board.html
+      - name: 游戏记录页面模版
+        description: 展示 Steam 游戏库、游玩时长、成就进度与个人评测。数据来自主题 assets/game/site.json（由 sync_extra.py 生成），封面图存放在 Halo 附件中。
+        screenshot:
+        file: game.html
   # 主题描述
   description: '梦之城，童话梦境'
   # 主题logo地址
