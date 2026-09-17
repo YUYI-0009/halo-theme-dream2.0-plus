@@ -215,8 +215,9 @@ document.addEventListener('pjax:complete', function (event) {
     if (el) el.classList.remove('active')
   }
 
-  /* 文本绘图：等缩放动画过渡结束后再渲染（scale 期间度量会偏小导致文字溢出节点框）
-     同时等待 mermaid 库就绪，最多重试 30 次（6s） */
+  /* 等 pjax 过渡结束、页面布局稳定后再插入 mermaid 渲染出的 SVG，避免过渡期间产生额外重排
+     （当前 pjax-loading 只有 opacity 过渡，并没有缩放，350ms 是历史遗留的缓冲，非强约束）；
+     initMermaid 在 mermaid 未就绪时会直接静默返回，所以这里轮询等待脚本就绪，最多重试 30 次（6s） */
   let mermaidRetry = 30
   const tryInitMermaid = () => {
     if (typeof mermaid !== 'undefined') {

@@ -1,6 +1,41 @@
 window.encrypt = (str) => window.btoa(unescape(encodeURIComponent(str)))
 window.decrypt = (str) => decodeURIComponent(escape(window.atob(str)))
 
+/* 常驻 rAF 循环注册表：同名循环只保留一个，节点脱离文档后自动停止 */
+const rafLoops = new Map()
+
+function registerRafLoop(name, node, tick) {
+  const prev = rafLoops.get(name)
+  if (prev) prev.stop()
+
+  let rafId = null
+  const loop = {
+    stopped: false,
+    stop() {
+      if (loop.stopped) return
+      loop.stopped = true
+      if (rafId !== null) cancelAnimationFrame(rafId)
+      rafId = null
+      if (rafLoops.get(name) === loop) rafLoops.delete(name)
+    },
+  }
+
+  const frame = (ts) => {
+    if (loop.stopped) return
+    // 目标节点已被移除（pjax 替换或模板切换）时停止，避免继续更新脱离文档的节点
+    if (node && node.isConnected === false) {
+      loop.stop()
+      return
+    }
+    tick(ts)
+    if (!loop.stopped) rafId = requestAnimationFrame(frame)
+  }
+
+  rafLoops.set(name, loop)
+  rafId = requestAnimationFrame(frame)
+  return loop.stop
+}
+
 const commonContext = {
   /* 初始化widget */
   initWidget() {
@@ -17,22 +52,13 @@ const commonContext = {
     $(window).on('resize', Utils.debounce(checkWidgetPosition, 100))
 
     // 按顺序插入元素到目标容器
-    function insertSequentially($target, elementsArray, callback) {
-      let index = 0
-
-      function insertNext() {
-        if (index < elementsArray.length) {
-          const el = elementsArray[index]
-          // 直接移动 DOM 节点
-          $target[0].appendChild(el)
-          index++
-          insertNext()
-        } else if (callback) {
-          callback()
-        }
-      }
-
-      insertNext()
+    // 先移入 DocumentFragment 再整体挂载：节点顺序不变，但只触发一次重排
+    function insertSequentially($target, elementsArray) {
+      const target = $target[0]
+      if (!target || elementsArray.length === 0) return
+      const fragment = document.createDocumentFragment()
+      elementsArray.forEach((el) => fragment.appendChild(el))
+      target.appendChild(fragment)
     }
 
     function checkWidgetPosition() {
@@ -148,24 +174,26 @@ const commonContext = {
   initBanner() {
     const $bannerInfoDesc = $('.banner-info-desc')
     if ($bannerInfoDesc.length === 0) return
+    const bannerNode = $bannerInfoDesc[0]
     const bannerDesc = $bannerInfoDesc.text()
     $bannerInfoDesc.text('')
+    // 没有可展示的文字时不启动循环，避免长期空转
+    if (!bannerDesc.trim()) return
     let currentBannerDesc = ''
     let isWrite = true
-    let animationId = null
     let lastTime = 0
 
-    const updateDesc = function (currentTime) {
+    registerRafLoop('banner-desc', bannerNode, (ts) => {
       // 初始化时间
       if (lastTime === 0) {
-        lastTime = currentTime
+        lastTime = ts
       }
       // 计算时间差
-      const elapsed = currentTime - lastTime
+      const elapsed = ts - lastTime
       const currentInterval = isWrite ? 500 : 80
       // 如果时间差大于等于间隔时间，执行一次更新
       if (elapsed >= currentInterval) {
-        let num = currentBannerDesc.length
+        const num = currentBannerDesc.length
         if (isWrite && num < bannerDesc.length) {
           currentBannerDesc += bannerDesc.charAt(num)
           $bannerInfoDesc.text(currentBannerDesc)
@@ -173,22 +201,15 @@ const commonContext = {
           currentBannerDesc = currentBannerDesc.slice(0, num - 1)
           $bannerInfoDesc.text(currentBannerDesc)
         } else {
-          // 当前方向完成，切换方向并重置时间
-          cancelAnimationFrame(animationId)
+          // 当前方向完成，切换方向并重置时间，让下一帧重新开始计时
           isWrite = !isWrite
-          lastTime = 0 // 重置时间，让下一帧重新开始计时
-          // 直接继续动画，不需要 setTimeout
-          animationId = requestAnimationFrame(updateDesc)
+          lastTime = 0
           return
         }
         // 更新最后执行时间（减去多余的时间，保持节奏）
-        lastTime = currentTime - (elapsed % currentInterval)
+        lastTime = ts - (elapsed % currentInterval)
       }
-      // 继续动画循环
-      animationId = requestAnimationFrame(updateDesc)
-    }
-    // 启动动画
-    animationId = requestAnimationFrame(updateDesc)
+    })
   },
   /* 激活图片预览功能 */
   initGallery() {
@@ -383,23 +404,30 @@ const commonContext = {
       return result
     }
 
+    // 滚动事件高频触发，用 rAF 合并为每帧最多执行一次，避免重复查询 DOM
+    let ticking = false
     const handleScroll = () => {
-      const scrollTop = $(document).scrollTop()
-      const direction = scrollDirection(scrollTop)
-      const $body = $('body')
-      const $actions = $('.actions')
-      if (scrollTop > 50 && direction) {
-        $body.addClass('move-up')
-      } else {
-        $body.removeClass('move-up')
-      }
-      if (scrollTop > 100) {
-        $actions.addClass('show')
-      } else {
-        $actions.removeClass('show')
-      }
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        ticking = false
+        const scrollTop = $(document).scrollTop()
+        const direction = scrollDirection(scrollTop)
+        const body = document.body
+        if (scrollTop > 50 && direction) {
+          body.classList.add('move-up')
+        } else {
+          body.classList.remove('move-up')
+        }
+        const $actions = $('.actions')
+        if (scrollTop > 100) {
+          $actions.addClass('show')
+        } else {
+          $actions.removeClass('show')
+        }
+      })
     }
-    document.addEventListener('scroll', handleScroll)
+    document.addEventListener('scroll', handleScroll, {passive: true})
   },
   /* 小屏幕伸缩侧边栏，包含导航或者目录 */
   drawerMobile() {
@@ -574,24 +602,25 @@ const commonContext = {
   },
   /* 恋爱墙倒计时 */
   loveTime() {
-    let $elem = $('.love .love-time')
+    const $elem = $('.love .love-time')
     if ($elem.length === 0 || !DreamConfig.love_time_template || !DreamConfig.love_time_template_year) return
-    let loveTime = $elem.attr('data-time')
+    const loveTime = $elem.attr('data-time')
     if (!/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/.test(loveTime)) {
       $elem.text(loveTime)
       return
     }
     const grt = new Date(loveTime)
-    let animationId = null
     let lastTime = 0
+    // 倒计时按整秒变化，缓存上次内容，避免每 200ms 重复重建相同 HTML
+    let lastHtml = ''
 
-    function updateLoveTime(currentTime) {
+    registerRafLoop('love-time', $elem[0], (ts) => {
       // 初始化时间
       if (lastTime === 0) {
-        lastTime = currentTime
+        lastTime = ts
       }
       // 计算时间差，大约200毫秒更新一次
-      const elapsed = currentTime - lastTime
+      const elapsed = ts - lastTime
       if (elapsed >= 200) {
         let now = new Date(Date.now())
         let difference = parseInt((now - grt) / 1000)
@@ -619,28 +648,28 @@ const commonContext = {
             grtYear += 1
           }
         }
+        let html
         if (year !== 0) {
-          $elem.html(DreamConfig.love_time_template_year
+          html = DreamConfig.love_time_template_year
             .replace(/\{(\d+)\}/g, (match, p1) => {
               const values = [year, days, hours, minutes, seconds]
               return values[p1]
-            }))
+            })
         } else {
-          $elem.html(DreamConfig.love_time_template
+          html = DreamConfig.love_time_template
             .replace(/\{(\d+)\}/g, (match, p1) => {
               const values = [days, hours, minutes, seconds]
               return values[p1]
-            }))
+            })
+        }
+        if (html !== lastHtml) {
+          lastHtml = html
+          $elem.html(html)
         }
         // 更新最后执行时间（简单重置，不校正多余时间）
-        lastTime = currentTime
+        lastTime = ts
       }
-      // 继续动画循环
-      animationId = requestAnimationFrame(updateLoveTime)
-    }
-
-    // 启动动画
-    animationId = requestAnimationFrame(updateLoveTime)
+    })
   },
   /* 激活建站倒计时功能 */
   websiteTime() {
@@ -652,16 +681,17 @@ const commonContext = {
       return
     }
     const grt = new Date(DreamConfig.website_time).getTime()
-    let animationId = null
     let lastTime = 0
+    // 建站时间按整秒变化，缓存上次内容，避免每 200ms 重复重建相同 HTML
+    let lastText = ''
 
-    function updateSiteTime(currentTime) {
+    registerRafLoop('site-time', websiteDate[0], (ts) => {
       // 初始化时间
       if (lastTime === 0) {
-        lastTime = currentTime
+        lastTime = ts
       }
       // 计算时间差，大约200毫秒更新一次
-      const elapsed = currentTime - lastTime
+      const elapsed = ts - lastTime
       if (elapsed >= 200) {
         let now = Date.now()
         let difference = parseInt((now - grt) / 1000)
@@ -686,18 +716,16 @@ const commonContext = {
             const values = [days, hours, minutes, seconds]
             return `<span class="stand">${values[p1]}</span>`
           })
-        websiteDate.forEach(element => {
-          element.innerHTML = timeText
-        })
+        if (timeText !== lastText) {
+          lastText = timeText
+          websiteDate.forEach(element => {
+            element.innerHTML = timeText
+          })
+        }
         // 更新最后执行时间（简单重置，不校正多余时间）
-        lastTime = currentTime
+        lastTime = ts
       }
-      // 继续动画循环
-      animationId = requestAnimationFrame(updateSiteTime)
-    }
-
-    // 启动动画
-    animationId = requestAnimationFrame(updateSiteTime)
+    })
   },
   /* 显示web版权 */
   webCopyright() {
@@ -1214,24 +1242,85 @@ window.commonContext = commonContext
 let timeLifeHour = -1
 
 !(function () {
-  const loads = ['initCarousel', 'sparkInput', 'websiteTime', 'initEffects', 'iniTaskItemDisabled', 'initPhotosGallery']
-  const omits = ['showThemeVersion', 'initMermaid']
+  /* 首帧前同步执行：会改动 DOM 结构、文本或可见性，推迟会出现"先渲染再被替换"的跳动 */
+  const IMMEDIATE = [
+    'initWidget', 'initTocAndNotice', 'initBanner', 'initGallery', 'initMode', 'initNavbar',
+    'mobileCloseNavbarMask', 'loveTime', 'webCopyright', 'initTimeCount', 'initCustomCountdown',
+    'showBanner',
+  ]
 
-  $('html').addClass('loaded')
+  /* 首帧之后：只做事件绑定与播放，晚一帧无感，不占用首屏绘制 */
+  const AFTER_PAINT = [
+    'searchDialog', 'initDropMenu', 'initLogonMenu', 'initScroll', 'drawerMobile', 'back2Top',
+    'maskClose', 'sideMenuMobile', 'initEvent', 'offscreenTip', 'closeFancybox',
+    'initSecurityLink', 'initGrayMode', 'playBannerVideo',
+  ]
 
-  Object.keys(commonContext).forEach(
-    (c) => !loads.includes(c) && !omits.includes(c) && commonContext[c]()
-  )
+  /* DOM 就绪后：依赖完整 DOM 或外部库 */
+  const ON_READY = [
+    'initCarousel', 'sparkInput', 'websiteTime', 'initEffects', 'iniTaskItemDisabled',
+    'initPhotosGallery',
+  ]
 
-  // 当前html加载完执行
-  document.addEventListener('DOMContentLoaded', function () {
-    // $('html').addClass('loaded')
-    loads.forEach((c) => commonContext[c] && commonContext[c]())
+  /* 浏览器空闲时：不参与首屏 */
+  const ON_IDLE = ['showThemeVersion', 'initMermaid']
+
+  const GROUPS = [IMMEDIATE, AFTER_PAINT, ON_READY, ON_IDLE]
+
+  // 单个初始化失败不影响后续，避免一个报错导致整批不执行
+  const run = (group) => group.forEach((name) => {
+    const init = commonContext[name]
+    if (typeof init !== 'function') return
+    try {
+      init()
+    } catch (e) {
+      console.error(`[common] ${name} 初始化失败`, e)
+    }
   })
 
-  // 所有内容加载完执行
-  window.addEventListener('load', function () {
-    omits.forEach((c) => commonContext[c] && commonContext[c]())
-    $('html').addClass('ready')
+  // 事件可能已经触发（异步脚本、pjax 替换等），这里统一兜底
+  const onReady = (cb) => {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', cb, {once: true})
+    } else {
+      cb()
+    }
+  }
+
+  const onLoad = (cb) => {
+    if (document.readyState === 'complete') {
+      cb()
+    } else {
+      window.addEventListener('load', cb, {once: true})
+    }
+  }
+
+  const onIdle = (cb) => {
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(cb, {timeout: 2000})
+    } else {
+      setTimeout(cb, 200)
+    }
+  }
+
+  // 漏写分组名时给出提示，避免新增方法静默不执行
+  const missed = Object.keys(commonContext).filter((name) => !GROUPS.some((g) => g.includes(name)))
+  if (missed.length) console.warn('[common] 未纳入执行分组的方法：', missed)
+
+  // 1. 首帧前摘掉加载态：必须最早执行且不加动画，否则会命中 html:not(.loaded) 的兜底动画
+  document.documentElement.classList.add('loaded')
+
+  // 2. 首帧只做影响布局/可见性的初始化，保证首帧即最终形态（不跳动、不缩放）
+  run(IMMEDIATE)
+
+  // 3. 让出主线程，先让浏览器把首帧画出来，再执行其余初始化
+  requestAnimationFrame(() => setTimeout(() => run(AFTER_PAINT), 0))
+
+  // 4. DOM 就绪后初始化依赖库的模块，空闲时再做剩下的事
+  onReady(() => {
+    run(ON_READY)
+    onIdle(() => run(ON_IDLE))
   })
+
+  onLoad(() => document.documentElement.classList.add('ready'))
 })()
