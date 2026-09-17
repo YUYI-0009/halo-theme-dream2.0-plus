@@ -428,6 +428,16 @@ const commonContext = {
       })
     }
     document.addEventListener('scroll', handleScroll, {passive: true})
+
+    // 记录滚动位置：刷新时浏览器恢复得较晚，banner 需要在首帧前据此判断是否临时隐藏
+    window.addEventListener('pagehide', () => {
+      try {
+        sessionStorage.setItem('dream2:scroll-top:' + location.pathname,
+          String(window.scrollY || window.pageYOffset || 0))
+      } catch (e) {
+        /* 隐私模式下 sessionStorage 不可用，忽略即可 */
+      }
+    })
   },
   /* 小屏幕伸缩侧边栏，包含导航或者目录 */
   drawerMobile() {
