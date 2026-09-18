@@ -176,9 +176,13 @@ const commonContext = {
     if ($bannerInfoDesc.length === 0) return
     const bannerNode = $bannerInfoDesc[0]
     const bannerDesc = $bannerInfoDesc.text()
-    $bannerInfoDesc.text('')
     // 没有可展示的文字时不启动循环，避免长期空转
     if (!bannerDesc.trim()) return
+    /* banner-info 是绝对定位、按 flex 规则垂直居中，清空文案会让整块变矮并重新居中，
+       视觉上就是 banner 内容往下跳一下；先把完整文案的高度固定住再清空，打字过程中高度保持不变 */
+    const descHeight = $bannerInfoDesc.height()
+    if (descHeight > 0) $bannerInfoDesc.css('min-height', descHeight + 'px')
+    $bannerInfoDesc.text('')
     let currentBannerDesc = ''
     let isWrite = true
     let lastTime = 0

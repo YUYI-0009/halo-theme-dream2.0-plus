@@ -912,7 +912,10 @@ table td, table th {
   &-above {
     width: 100%;
     background-color: var(--background);
-    transition: all 0.5s;
+    /* 不能用 all：会把 height/padding 这类布局属性的变化也做成 0.5s 动画，
+       导航栏里任何晚定型的内容（logo 图、图标字体、web font）都会把整页缓慢推下去一段。
+       这里只保留显隐/配色相关的过渡 */
+    transition: transform 0.5s ease, opacity 0.5s ease, background-color 0.5s ease, box-shadow 0.5s ease;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05), 0 0 1px rgba(0, 0, 0, 0.1);
 
     &.animation {
