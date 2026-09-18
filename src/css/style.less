@@ -1677,6 +1677,11 @@ table td, table th {
 }
 
 .swiper {
+  /* swiper 的基础样式没随 swiper-bundle 一起引入，这里补齐：
+     overflow 缺失会让未初始化时的幻灯片横向铺到卡片外，初始化瞬间再整排移动，看起来就是一次闪烁；
+     position 缺失会让绝对定位的分页/左右按钮相对外层祖先定位而跑位 */
+  position: relative;
+  overflow: hidden;
   border: none !important;
 
   &-initialized {
