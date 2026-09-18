@@ -12,6 +12,28 @@
         if (location.pathname !== '/') {
           banner.classList.add('hidden')
         }
+        /* 刷新时浏览器在首帧之后才恢复滚动位置，这段时间会先看到顶部的 banner，再整页跳动。
+           这里用上次记录的滚动位置预判：若已经滚过 banner，就先用 visibility 隐藏它
+           （保留占位、不改变文档高度，避免影响浏览器恢复到的位置），恢复完成后再显示 */
+        var lastTop = 0
+        try {
+          lastTop = parseInt(sessionStorage.getItem('dream2:scroll-top:' + location.pathname) || '0', 10) || 0
+        } catch (e) {
+          lastTop = 0
+        }
+        if (location.pathname === '/' && lastTop > (banner.offsetHeight || window.innerHeight)) {
+          banner.style.visibility = 'hidden'
+          var revealed = false
+          var reveal = function () {
+            if (revealed) return
+            revealed = true
+            banner.style.visibility = ''
+            window.removeEventListener('scroll', reveal)
+          }
+          // 浏览器恢复滚动位置会触发 scroll；没有可恢复的位置时由超时兜底显示
+          window.addEventListener('scroll', reveal, {passive: true})
+          setTimeout(reveal, 1200)
+        }
         // 等待首帧渲染完成后恢复 transition
         requestAnimationFrame(function () {
           requestAnimationFrame(function () {
@@ -62,6 +84,26 @@
         <div class="banner-info-title" th:text="${site.title}"></div>
         <div class="banner-info-desc" th:text="${theme.config.basic_style.banner_description}"></div>
     </div>
+    <script>
+      (function () {
+        /* 描述要到这一行才解析出来，所以隐藏必须放在 .banner-info 之后：
+           服务端渲染的是完整描述，首帧前先隐藏，避免刷新时先闪出完整文案再被 initBanner 清空重打
+           （initBanner 清空后会恢复显示，并立即开始逐字打印） */
+        var desc = document.querySelector('.banner-info-desc')
+        if (!desc) return
+        /* 未填写描述时整块移除：否则会只剩一个一直闪烁的光标（.banner-info-desc:after 的 '_'），
+           看上去就是停在那里的空打字机 */
+        if (!desc.textContent.trim()) {
+          desc.style.display = 'none'
+          return
+        }
+        desc.style.visibility = 'hidden'
+        // 兜底：common.js 没跑起来时自行显示，此时显示的就是服务端渲染的完整文案，不会一直空白
+        setTimeout(function () {
+          desc.style.visibility = ''
+        }, 1200)
+      })()
+    </script>
     <svg class="banner-waves" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
          viewBox="0 24 150 28" preserveAspectRatio="none" shape-rendering="auto">
         <defs>

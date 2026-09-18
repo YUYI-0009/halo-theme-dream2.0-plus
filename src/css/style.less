@@ -912,7 +912,10 @@ table td, table th {
   &-above {
     width: 100%;
     background-color: var(--background);
-    transition: all 0.5s;
+    /* 不能用 all：会把 height/padding 这类布局属性的变化也做成 0.5s 动画，
+       导航栏里任何晚定型的内容（logo 图、图标字体、web font）都会把整页缓慢推下去一段。
+       这里只保留显隐/配色相关的过渡 */
+    transition: transform 0.5s ease, opacity 0.5s ease, background-color 0.5s ease, box-shadow 0.5s ease;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05), 0 0 1px rgba(0, 0, 0, 0.1);
 
     &.animation {
@@ -1677,6 +1680,11 @@ table td, table th {
 }
 
 .swiper {
+  /* swiper 的基础样式没随 swiper-bundle 一起引入，这里补齐：
+     overflow 缺失会让未初始化时的幻灯片横向铺到卡片外，初始化瞬间再整排移动，看起来就是一次闪烁；
+     position 缺失会让绝对定位的分页/左右按钮相对外层祖先定位而跑位 */
+  position: relative;
+  overflow: hidden;
   border: none !important;
 
   &-initialized {
@@ -1692,6 +1700,17 @@ table td, table th {
       }
     }
   }
+}
+
+/* Swiper 就绪前不绘制轮播内容：初始化瞬间的位移、克隆节点都会被看到，表现为刷新时的一次闪烁。
+   用 opacity 而不是 display，保证 Swiper 仍能量到尺寸 */
+.swiper:not(.swiper-ready) .swiper-wrapper {
+  opacity: 0;
+}
+
+/* 兜底：JS 未及时标记 swiper-ready（脚本报错、swiper 未加载）时，1s 后强制显示，避免轮播一直空白 */
+html:not(.loaded) .swiper:not(.swiper-ready) .swiper-wrapper {
+  animation: force-show 0.3s 1s forwards;
 }
 
 .swiper-vertical > .swiper-wrapper {
