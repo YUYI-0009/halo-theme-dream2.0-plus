@@ -1699,6 +1699,17 @@ table td, table th {
   }
 }
 
+/* Swiper 就绪前不绘制轮播内容：初始化瞬间的位移、克隆节点都会被看到，表现为刷新时的一次闪烁。
+   用 opacity 而不是 display，保证 Swiper 仍能量到尺寸 */
+.swiper:not(.swiper-ready) .swiper-wrapper {
+  opacity: 0;
+}
+
+/* 兜底：JS 未及时标记 swiper-ready（脚本报错、swiper 未加载）时，1s 后强制显示，避免轮播一直空白 */
+html:not(.loaded) .swiper:not(.swiper-ready) .swiper-wrapper {
+  animation: force-show 0.3s 1s forwards;
+}
+
 .swiper-vertical > .swiper-wrapper {
   flex-direction: column;
 }

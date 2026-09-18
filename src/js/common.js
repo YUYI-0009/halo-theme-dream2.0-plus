@@ -572,26 +572,32 @@ const commonContext = {
   },
   /** 初始化轮播 **/
   initCarousel() {
-    window.Swiper && new Swiper('.swiper', {
-      loop: true,
-      parallax: true,
-      effect: 'slide',
-      spaceBetween: 10,
-      speed: 600,
-      autoplay: {
-        delay: 3000,
-        disableOnInteraction: false,
-        pauseOnMouseEnter: true,
-      },
-      pagination: {
-        el: '.swiper-pagination',
-        clickable: true,
-      },
-      navigation: {
-        nextEl: '.swiper-button-next',
-        prevEl: '.swiper-button-prev',
-      },
-    })
+    const $swiper = $('.swiper')
+    try {
+      window.Swiper && new Swiper('.swiper', {
+        loop: true,
+        parallax: true,
+        effect: 'slide',
+        spaceBetween: 10,
+        speed: 600,
+        autoplay: {
+          delay: 3000,
+          disableOnInteraction: false,
+          pauseOnMouseEnter: true,
+        },
+        pagination: {
+          el: '.swiper-pagination',
+          clickable: true,
+        },
+        navigation: {
+          nextEl: '.swiper-button-next',
+          prevEl: '.swiper-button-prev',
+        },
+      })
+    } finally {
+      // 无论初始化成功与否都要标记，否则轮播会一直停在 opacity: 0
+      $swiper.addClass('swiper-ready')
+    }
   },
   /** 关闭画廊 **/
   closeFancybox() {
