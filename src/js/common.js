@@ -183,6 +183,8 @@ const commonContext = {
     const descHeight = $bannerInfoDesc.height()
     if (descHeight > 0) $bannerInfoDesc.css('min-height', descHeight + 'px')
     $bannerInfoDesc.text('')
+    // 文案在首帧前已被隐藏，清空后恢复显示，再由打字动画逐字填充
+    $bannerInfoDesc.css('visibility', '')
     let currentBannerDesc = ''
     let isWrite = true
     let lastTime = 0
