@@ -7,8 +7,15 @@ templates/assets/js/dshare.min.js.LICENSE.txt
 /templates/assets/js/
 /templates/assets/css/
 
-# 游戏记录页的数据与封面：由脚本生成并部署，不进仓库
+# 游戏记录页的数据与封面：由脚本生成，不进仓库
 #   site.json  含 SteamID 与全部评测正文，推公开仓库会泄露
-#   封面图     存在 Halo 附件里，见 upload_covers.py
+#   封面图     240 张 13 MB，属于附件性质
+# 待上传为 Halo 附件的原件整个目录都只留本地，见该目录 README.md
 /templates/assets/game/site.json
 /templates/assets/game/covers/
+/attachments-to-upload/
+
+# 开发文档只留本地，不进公开仓库 —— 里面有本机部署路径（/opt/1panel/...）和运维细节。
+# 公开仓库里只保留 README.md（上游原版说明，给人看的安装/参与开发文档）。
+/CLAUDE.md
+/主题开发流程.md
