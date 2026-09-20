@@ -2308,3 +2308,13 @@ spec:
           label: "内嵌Html内容（body）"
           placeholder: 请输入 Html 代码内容
           help: '填入Html代码，将插入body标签尾部，用于自定义显示一段Html内容，注意：Html内容默认会在页脚下方，请注意设置样式避免页脚出现样式问题。'
+    # ↓↓↓ 以下为二次开发新增（yuyi），与上游设置项分开，减少以后合并上游时的冲突 ↓↓↓
+    - group: game_page
+      label: '游戏记录页'
+      formSchema:
+        - $formkit: text
+          name: data_url
+          label: 游戏数据地址
+          value: /upload/site.json
+          placeholder: /upload/site.json
+          help: 'site.json 上传到 Halo 附件后的访问路径。数据刷新后重新上传 site.json，把这里换成新地址即可，页面与代码都不用动。'

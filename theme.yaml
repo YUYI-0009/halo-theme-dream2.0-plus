@@ -48,9 +48,10 @@ spec:
   settingName: theme-dream2-plus-setting
   configMapName: theme-dream2-plus-configMap
   # 版本号
-  # 1.23.2-yuyi.1 = 基于上游 1.23.2 的二次开发第 1 版；
+  # 1.23.2-yuyi.<n> = 基于上游 1.23.2 的二次开发第 n 版：
+  #   yuyi.1 游戏记录页面模版；yuyi.2 游戏数据与封面改由 Halo 附件提供
   # 发新版时改这里，或者用 `npm run dev`（会自动写 0.0.<时间戳>）
-  version: 1.23.2-yuyi.1
+  version: 1.23.2-yuyi.2
   # 最低支持的 Halo 版本
   requires: ">=2.24.2"
   # 许可

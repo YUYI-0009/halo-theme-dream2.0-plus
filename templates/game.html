@@ -7,13 +7,13 @@
       templates/assets/game/game.js     页面脚本
       theme.yaml 的 spec.customTemplates.page 里已登记本模版
 
-  数据来源
-      /themes/<主题>/assets/game/site.json
-          由 sync_extra.py 生成后部署进主题，**不进仓库**
-          （含 SteamID 与全部评测正文，推公开仓库会泄露）
-      封面图
-          存在 Halo 附件里，site.json 中记的是 /upload/... 绝对路径，
-          因此主题怎么重装都不会丢。上传脚本见 upload_covers.py。
+  数据来源（都在 Halo 附件里，与主题目录无关 —— 主题升级会先删光主题目录，
+  数据放里面必然丢；放附件里则怎么升都不影响）
+      site.json    /upload/site.json
+                   由 sync_extra.py 生成、传成附件，**不进仓库**
+                   （含 SteamID 与全部评测正文，推公开仓库会泄露）
+                   地址可在后台「主题设置 → 游戏记录页」里改，见下面的 data-json
+      封面图        /upload/<文件名>.jpg，各自对应一张，地址写在 site.json 里
 
   设计语言
       全部使用主题已有的 CSS 变量（--theme / --light-a / --light-b / --dark-c /
@@ -36,8 +36,14 @@
       hideSidebar 必须为 false：为 true 时主题会加 .hide-sidebar，
       它带 width:100vw 会让整页撑到视口宽，并把侧边栏 display:none 掉。
     -->
+    <!--
+      data-json：数据来自 Halo 附件，不再是主题目录里的文件。
+      地址取自后台「主题设置 → 游戏记录页 → 游戏数据地址」，没设置过就用兜底值。
+      用 ?. 而不是 . —— 万一主题设置里还没有这一组（重载配置前），
+      硬取属性会让整个模板报错，兜底值则能让页面照常工作。
+    -->
     <div id="game-tracker" class="main-content"
-         th:attr="data-json=${#theme.assets('/game/site.json')}">
+         th:attr="data-json=${theme.config.game_page?.data_url ?: '/upload/site.json'}">
       <div class="gt-state">
         <i class="ri-loader-4-line gt-spin"></i>
         <span>正在读取游戏数据…</span>
