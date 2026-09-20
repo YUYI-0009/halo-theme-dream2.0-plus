@@ -9,6 +9,17 @@
 <a href="https://afdian.com/a/org-hcjike"><img alt="donate" src="https://img.shields.io/badge/$-donate-ff69b4.svg?style=flat-square"/></a>
 </p>
 
+> **本仓库说明（二次开发）**
+>
+> 这是 [`hcjike/halo-theme-dream2.0-plus`](https://github.com/hcjike/halo-theme-dream2.0-plus)
+> 的**二次开发版本**，由 **yuyi**（[@YUYI-0009](https://github.com/YUYI-0009)）在原作者
+> **宏尘极客** 的主题上**做功能添加**（已加：游戏记录页面模板 `game.html` 及其数据页），
+> 不是重写主题，也不改动上游的既有行为；上游更新会尽量合并进来。
+>
+> 主题的著作权与授权见 [LICENSE](LICENSE)（MIT，保留原作者的版权声明）。
+> 主题 ID 仍为 `theme-dream2-plus`（保持不变是为了让已安装站点的设置、页面绑定不失效），
+> 后台显示名是 `Dream2.0 Plus · yuyi`。
+
 本仓库为 `Halo 2.x` 主题仓库。
 
 ## 主题预览

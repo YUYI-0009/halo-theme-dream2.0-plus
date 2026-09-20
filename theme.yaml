@@ -2,19 +2,20 @@ apiVersion: theme.halo.run/v1alpha1
 kind: Theme
 metadata:
   # 主题id，唯一
+  # ⚠ 不要改：线上已安装的主题、/themes/<id>/ 资源地址、主题设置与页面绑定全绑着它。
+  # 二次开发改的是 spec.displayName（显示名），不是这里。
   name: theme-dream2-plus
-  annotations:
-    # Add supports for Halo App Store
-    # https://www.halo.run/store/apps/app-HrMpM
-    "store.halo.run/app-id": "app-HrMpM"
+  # 注：上游原有的 annotations（应用中关 id store.halo.run/app-id）已移除 ——
+  # 留着会让后台提示「应用商店有新版本」，一点就把上游原版覆盖上来。
+  # 以后要自己上架商店再加回自己的 app-id。
 spec:
-  # 主题名称
-  displayName: Dream2.0 Plus
+  # 主题名称（二次开发）
+  displayName: Dream2.0 Plus · yuyi
   author:
-    # 作者名称
-    name: 宏尘极客
+    # 作者名称（二次开发维护者；原作者见 description 与 LICENSE）
+    name: yuyi
     # 作者网址
-    website: https://www.hcjike.com
+    website: https://github.com/YUYI-0009
   customTemplates:
     page:
       - name: 安全链接页面模版
@@ -34,20 +35,22 @@ spec:
         screenshot:
         file: game.html
   # 主题描述
-  description: '梦之城，童话梦境'
+  description: '梦之城，童话梦境。基于 宏尘极客 的 Dream2.0 Plus 二次开发（yuyi），在原作者主题上新增游戏记录等功能页面。'
   # 主题logo地址
   logo: /themes/theme-dream2-plus/assets/img/logo.png
   homepage: https://www.halo.run/store/apps/app-HrMpM
   # 主题地址
   website: https://www.hcjike.com/docs/halo-theme-dream2.0
-  # 主题github开源地址
-  repo: https://github.com/hcjike/halo-theme-dream2.0-plus.git
+  # 主题github开源地址（二次开发仓库）
+  repo: https://github.com/YUYI-0009/halo-theme-dream2.0-plus.git
   # 提交问题地址
-  issues: https://github.com/hcjike/halo-theme-dream2.0-plus/issues
+  issues: https://github.com/YUYI-0009/halo-theme-dream2.0-plus/issues
   settingName: theme-dream2-plus-setting
   configMapName: theme-dream2-plus-configMap
   # 版本号
-  version: 0.0.0
+  # 1.23.2-yuyi.1 = 基于上游 1.23.2 的二次开发第 1 版；
+  # 发新版时改这里，或者用 `npm run dev`（会自动写 0.0.<时间戳>）
+  version: 1.23.2-yuyi.1
   # 最低支持的 Halo 版本
   requires: ">=2.24.2"
   # 许可
